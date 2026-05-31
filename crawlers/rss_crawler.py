@@ -72,7 +72,7 @@ class RssCrawler:
 
                 for entry in feed.entries:
                     pub_date = _parse_entry_date(entry)
-                    if pub_date and pub_date < cutoff:
+                    if pub_date is None or pub_date < cutoff:
                         continue
 
                     title = getattr(entry, "title", "").strip()
