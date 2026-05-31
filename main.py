@@ -113,14 +113,13 @@ def run(args) -> int:
 
     # 9. 生成报告
     formatter = ReportFormatter(output_cfg)
-    md_path, json_path = formatter.generate(new_items, date_str)
+    md_path = formatter.generate(new_items, date_str)
 
     # 10. 保存去重记录
     dedup.save()
 
     logger.info(f"=== 完成 ===")
-    logger.info(f"Markdown: {md_path}")
-    logger.info(f"JSON:     {json_path}")
+    logger.info(f"报告: {md_path}")
     logger.info(f"新内容:   {len(new_items)} 条")
 
     return 0

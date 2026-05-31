@@ -1,5 +1,4 @@
-"""报告格式化器 - 生成 Markdown 日报"""
-import json
+"""报告格式化器 - 每天生成一个 Markdown 文件 output/YYYY-MM-DD.md"""
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,10 +38,7 @@ class ReportFormatter:
         ai_analysis = item.get("ai_analysis", "")
 
         lines = []
-        if url:
-            lines.append(f"### [{title}]({url})")
-        else:
-            lines.append(f"### {title}")
+        lines.append(f"### [{title}]({url})" if url else f"### {title}")
 
         meta_parts = []
         if source:
@@ -53,7 +49,6 @@ class ReportFormatter:
             meta_parts.append(f"作者: {', '.join(authors[:3])}")
         if stars is not None:
             meta_parts.append(f"⭐ {stars}")
-
         if meta_parts:
             lines.append("> " + " | ".join(meta_parts))
 
@@ -70,50 +65,34 @@ class ReportFormatter:
 
         return "\n".join(lines)
 
-    def generate(self, items: list[dict], date_str: str | None = None) -> tuple[Path, Path]:
+    def generate(self, items: list[dict], date_str: str | None = None) -> Path:
         if date_str is None:
             date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-        out_dir = self.base_dir / date_str
-        out_dir.mkdir(parents=True, exist_ok=True)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
-        # 保存原始 JSON
-        json_path = out_dir / "raw.json"
-        json_path.write_text(
-            json.dumps(items, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-
-        # 生成 Markdown 日报
         groups = self._group_by_category(items)
         total = len(items)
 
         md_lines = [
             f"# VLA & 具身智能日报 {date_str}",
             f"\n> 共收录 **{total}** 条内容\n",
+            "## 目录\n",
         ]
-
-        # 目录
-        md_lines.append("## 目录\n")
         for cat, label in CATEGORY_LABELS.items():
             if cat in groups:
-                count = len(groups[cat])
-                md_lines.append(f"- {label}（{count}）")
+                md_lines.append(f"- {label}（{len(groups[cat])}）")
         md_lines.append("")
 
-        # 按分类输出
         for cat, label in CATEGORY_LABELS.items():
             if cat not in groups:
                 continue
-            cat_items = groups[cat]
             md_lines.append(f"---\n\n## {label}\n")
-            for item in cat_items:
+            for item in groups[cat]:
                 md_lines.append(self._format_item(item))
                 md_lines.append("")
 
-        md_content = "\n".join(md_lines)
-        md_path = out_dir / "report.md"
-        md_path.write_text(md_content, encoding="utf-8")
-
+        md_path = self.base_dir / f"{date_str}.md"
+        md_path.write_text("\n".join(md_lines), encoding="utf-8")
         logger.info(f"报告已生成: {md_path}")
-        return md_path, json_path
+        return md_path
