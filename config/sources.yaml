@@ -24,7 +24,7 @@ arxiv:
     - "sim-to-real"
     - "dexterous manipulation"
   max_results: 50
-  days_back: 2
+  days_back: 3
 
 rss:
   feeds:

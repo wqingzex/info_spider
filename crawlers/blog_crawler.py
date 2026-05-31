@@ -69,10 +69,21 @@ class BlogCrawler:
             if not url or url in seen_urls:
                 continue
 
-            # 过滤：链接必须在同域或是子路径
-            base_domain = urlparse(base_url).netloc
-            link_domain = urlparse(url).netloc
-            if link_domain and link_domain != base_domain:
+            # 过滤：同域、非纯锚点、路径比首页更深
+            parsed = urlparse(url)
+            base_parsed = urlparse(base_url)
+            if parsed.netloc and parsed.netloc != base_parsed.netloc:
+                continue
+            # 排除纯锚点跳转（去掉 # 后与来源页相同）
+            if url.split("#")[0].rstrip("/") == base_url.split("#")[0].rstrip("/"):
+                continue
+            # 路径必须比来源页更深（至少多一级）
+            if parsed.path.rstrip("/") == base_parsed.path.rstrip("/"):
+                continue
+            # 标题不能是导航词
+            if title.lower() in {"menu","home","back","top","skip","nav","首页","返回","目录","导航"}:
+                continue
+            if len(title) < 8:
                 continue
 
             seen_urls.add(url)
