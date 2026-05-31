@@ -1,0 +1,10 @@
+httpx==0.28.1
+feedparser==6.0.11
+beautifulsoup4==4.12.3
+lxml==5.3.0
+PyYAML==6.0.3
+python-dateutil==2.9.0
+
+# AI 分析（按需安装其中之一）
+# Gemini（免费，推荐）：pip install google-genai
+# Anthropic（付费）：pip install anthropic

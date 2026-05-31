@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.local
+*.log
+logs/
+# 保留 output/ 和 data/ 让 GitHub Actions commit 进去
+# output/  # 不要忽略
+
+# GH Actions 会 commit 真实日报，本地测试输出不跟踪
+output/*/
+!output/.gitkeep

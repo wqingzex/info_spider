@@ -1,0 +1,73 @@
+name: Daily VLA Intelligence Crawl
+
+on:
+  schedule:
+    # 每天北京时间 09:00 (UTC+8) → UTC 01:00
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '指定日期 (YYYY-MM-DD，留空为今天)'
+        required: false
+        default: ''
+      no_ai:
+        description: '跳过 AI 分析'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install google-genai
+
+      - name: Run crawler
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RSSHUB_URL: ${{ secrets.RSSHUB_URL }}
+        run: |
+          DATE_ARG=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            DATE_ARG="--date ${{ github.event.inputs.date }}"
+          fi
+
+          NO_AI_ARG=""
+          if [ "${{ github.event.inputs.no_ai }}" = "true" ]; then
+            NO_AI_ARG="--no-ai"
+          fi
+
+          python main.py $DATE_ARG $NO_AI_ARG
+
+      - name: Commit and push results
+        run: |
+          git config user.name "VLA Spider Bot"
+          git config user.email "vla-spider-bot@users.noreply.github.com"
+          git add output/ data/
+          if git diff --staged --quiet; then
+            echo "No new content today."
+          else
+            DATE=$(date -u +%Y-%m-%d)
+            git commit -m "feat: daily crawl ${DATE}"
+            git push
+          fi
