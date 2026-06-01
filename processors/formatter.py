@@ -56,7 +56,10 @@ class ReportFormatter:
             lines.append(f"\n{summary[:200]}{'...' if len(summary) > 200 else ''}")
 
         if ai_analysis:
-            lines.append(f"\n**AI 分析:** {ai_analysis}")
+            lines.append("")
+            for ai_line in ai_analysis.split("\n"):
+                if ai_line.strip():
+                    lines.append(f"> {ai_line}")
 
         cross_refs = item.get("cross_refs", [])
         if cross_refs:

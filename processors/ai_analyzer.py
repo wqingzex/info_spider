@@ -24,19 +24,26 @@ MAX_BATCH_SIZE = 20  # Gemini 免费版每次不要太大，避免超 token 限�
 
 
 def _build_prompt(items: list[dict]) -> str:
-    lines = ["分析以下VLA/具身智能相关内容，对每条输出JSON格式结果：\n"]
+    lines = ["你是具身智能/机器人领域专家，请分析以下内容并用中文输出结构化摘要。\n"]
     for i, item in enumerate(items):
         title = item.get("title", "")
-        summary = item.get("summary", "")[:200]
-        lines.append(f"[{i}] 标题: {title}\n    摘要: {summary}")
+        summary = item.get("summary", "")[:300]
+        lines.append(f"[{i}] 标题: {title}\n    原文摘要: {summary}")
 
     lines.append("""
-请对上述每条内容，输出如下 JSON 数组（不要添加任何其他文字，直接输出数组）：
+请对每条内容输出 JSON 数组（只输出数组，不要其他文字）：
 [
-  {"index": 0, "zh_summary": "一句话中文摘要", "highlight": "技术亮点或无", "relevance": 1},
-  ...
+  {
+    "index": 0,
+    "problem": "解决什么问题（1句，没有则写无）",
+    "method": "如何解决/技术方案（1-2句）",
+    "result": "效果/实验结果（1句，没有则写无）",
+    "summary": "中文总结（2-3句，综合以上三点，面向研究者）",
+    "relevance": 5
+  }
 ]
-relevance 评分: 5=直接相关VLA/具身/人形机器人, 4=相关机器人/AI, 3=泛AI, 2=边缘相关, 1=不相关""")
+relevance 评分: 5=直接相关VLA/具身/人形机器人, 4=相关机器人/AI, 3=泛AI, 2=边缘相关, 1=不相关
+注意：所有字段用中文，summary 要信息密度高，避免废话""")
 
     return "\n".join(lines)
 
@@ -55,11 +62,15 @@ def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
             if i in index_map:
                 r = index_map[i]
                 parts = []
-                if r.get("zh_summary"):
-                    parts.append(r["zh_summary"])
-                if r.get("highlight") and r["highlight"] != "无":
-                    parts.append(f"亮点: {r['highlight']}")
-                item["ai_analysis"] = " | ".join(parts)
+                if r.get("problem") and r["problem"] != "无":
+                    parts.append(f"**问题**: {r['problem']}")
+                if r.get("method"):
+                    parts.append(f"**方法**: {r['method']}")
+                if r.get("result") and r["result"] != "无":
+                    parts.append(f"**效果**: {r['result']}")
+                if r.get("summary"):
+                    parts.append(f"**总结**: {r['summary']}")
+                item["ai_analysis"] = "\n".join(parts)
                 item["relevance"] = r.get("relevance", 3)
     except Exception as e:
         logger.warning(f"AI 响应解析失败: {e}")
