@@ -47,23 +47,13 @@ rss:
       keywords: ["机器人", "具身", "VLA", "人形"]
       rsshub: true
 
-    - name: "36kr-机器人"
-      url: "https://rsshub.app/36kr/newsflash"
-      category: "media_cn"
-      keywords: ["机器人", "具身", "人形"]
 
-    # 科技媒体（国际）
     - name: "TechCrunch AI"
       url: "https://techcrunch.com/category/artificial-intelligence/feed/"
       category: "media_intl"
       keywords: ["robot", "embodied", "VLA", "humanoid"]
 
-    - name: "MIT News Robotics"
-      url: "https://news.mit.edu/topic/mitrobotics-rss.xml"
-      category: "media_intl"
-      keywords: []
 
-    # 公司博客（国际）
     - name: "Google DeepMind Blog"
       url: "https://deepmind.google/blog/rss.xml"
       category: "company_intl"
@@ -74,10 +64,6 @@ rss:
       category: "company_intl"
       keywords: ["robot", "embodied"]
 
-    - name: "Boston Dynamics Blog"
-      url: "https://www.bostondynamics.com/resources/blog/rss"
-      category: "company_intl"
-      keywords: []
 
     - name: "Hugging Face Blog"
       url: "https://huggingface.co/blog/feed.xml"
@@ -146,26 +132,8 @@ blogs:
     title_selector: "h1, h2, h3"
     link_selector: "a"
 
-  - name: "Apptronik"
-    url: "https://apptronik.com/news-all"
-    category: "company_intl"
-    article_selector: "[class*='news'], article"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
 
-  - name: "Sanctuary AI"
-    url: "https://sanctuary.ai/resources/news"
-    category: "company_intl"
-    article_selector: "[class*='news'], article"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
 
-  - name: "Skild AI"
-    url: "https://www.skild.ai/blog"
-    category: "company_intl"
-    article_selector: "article, [class*='blog'], [class*='post']"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
 
   - name: "Covariant"
     url: "https://covariant.ai/insights"

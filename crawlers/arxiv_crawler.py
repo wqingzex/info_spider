@@ -49,13 +49,25 @@ class ArxivCrawler:
             "start": 0,
         }
 
-        try:
+        retries = 3
+        for attempt in range(retries):
             url = f"{self.BASE_URL}?{urlencode(params)}"
-            logger.info(f"arXiv query: {url}")
-            with build_client(self.timeout, self.headers) as client:
-                resp = client.get(url)
-                resp.raise_for_status()
-            time.sleep(self.delay)
+            if attempt == 0:
+                logger.info(f"arXiv query: {url}")
+            try:
+                with build_client(self.timeout, self.headers) as client:
+                    resp = client.get(url)
+                    resp.raise_for_status()
+                time.sleep(self.delay)
+                break
+            except Exception as e:
+                wait = 10 * (2 ** attempt)
+                logger.warning(f"arXiv 请求失败 (attempt {attempt+1}/{retries}): {e}, 等待 {wait}s")
+                if attempt < retries - 1:
+                    time.sleep(wait)
+                else:
+                    logger.error(f"arXiv 爬取失败，已重试 {retries} 次")
+                    return results
 
             root = ET.fromstring(resp.text)
             entries = root.findall(f"{{{ATOM_NS}}}entry")
