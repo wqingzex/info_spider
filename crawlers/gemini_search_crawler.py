@@ -157,10 +157,24 @@ class GeminiSearchCrawler:
                         if u not in text_titles and not t.startswith("http"):
                             text_titles[u] = t
 
+                    # 金融/无关域名黑名单
+                    _BLOCKED_DOMAINS = {
+                        "kucoin.com", "morningstar.com", "thestreet.com",
+                        "investing.com", "finance.yahoo.com", "nasdaq.com",
+                        "bloomberg.com", "reuters.com", "marketwatch.com",
+                        "coinbase.com", "binance.com", "tradingview.com",
+                        "youtube.com",  # 视频不适合文本摘要
+                    }
+
                     added = 0
                     for item in grounded:
                         url = item["url"]
                         if url in seen_urls:
+                            continue
+                        # 域名黑名单过滤
+                        from urllib.parse import urlparse as _urlparse
+                        domain = _urlparse(url).netloc.lstrip("www.")
+                        if any(domain == b or domain.endswith("." + b) for b in _BLOCKED_DOMAINS):
                             continue
                         seen_urls.add(url)
                         # 优先用文本里提取的标题，其次用 grounding 标题，再次用域名
