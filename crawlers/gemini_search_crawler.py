@@ -57,19 +57,38 @@ _URL_RE = re.compile(r"https?://[^\s\)\]\"']+")
 
 
 def _extract_grounding_urls(response) -> list[dict]:
-    """从 Gemini grounding metadata 中提取搜索结果"""
+    """从 Gemini grounding metadata 中提取搜索结果，含文章标题"""
     results = []
+    seen = set()
     try:
         meta = response.candidates[0].grounding_metadata
         if not meta:
             return results
-        for chunk in (meta.grounding_chunks or []):
+
+        # 优先从 grounding_supports 获取渲染标题（更准确）
+        support_titles: dict[str, str] = {}
+        for support in (getattr(meta, "grounding_supports", None) or []):
+            indices = getattr(support, "grounding_chunk_indices", []) or []
+            segment = getattr(support, "segment", None)
+            if segment and indices:
+                text = getattr(segment, "text", "") or ""
+                if text and len(text) > 10:
+                    for idx in indices:
+                        if idx not in support_titles:
+                            support_titles[idx] = text[:120]
+
+        for i, chunk in enumerate(meta.grounding_chunks or []):
             web = getattr(chunk, "web", None)
-            if web and web.uri:
-                results.append({
-                    "url": web.uri,
-                    "title": getattr(web, "title", "") or "",
-                })
+            if not (web and web.uri):
+                continue
+            uri = web.uri
+            if uri in seen:
+                continue
+            seen.add(uri)
+
+            # 标题优先级：web.title > support text > 空
+            title = getattr(web, "title", "") or support_titles.get(i, "")
+            results.append({"url": uri, "title": title.strip()})
     except Exception:
         pass
     return results

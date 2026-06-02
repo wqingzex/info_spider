@@ -50,10 +50,18 @@ relevance 评分: 5=直接相关VLA/具身/人形机器人, 4=相关机器人/AI
 
 def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
     try:
-        start = response.find("[")
-        end = response.rfind("]") + 1
+        # 去掉 markdown 代码块包装（```json ... ```）
+        text = response.strip()
+        if "```" in text:
+            import re
+            text = re.sub(r"```(?:json)?\s*", "", text).strip()
+
+        start = text.find("[")
+        end = text.rfind("]") + 1
         if start == -1 or end == 0:
+            logger.debug(f"AI 响应未找到 JSON 数组: {text[:200]}")
             return items
+        response = text  # 用清理后的文本
 
         parsed = json.loads(response[start:end])
         index_map = {r["index"]: r for r in parsed if "index" in r}
