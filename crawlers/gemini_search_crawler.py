@@ -43,7 +43,7 @@ SEARCH_TASKS = [
     {
         "prompt": "Search for the latest papers or projects (past 7 days) on reinforcement learning for robot manipulation, sim-to-real transfer, dexterous manipulation, RLHF for robots. List titles and links.",
         "name": "RL机器人",
-        "category": "paper",
+        "category": "media_intl",
     },
     # 微信公众号（通过 Google 索引部分公众号文章）
     {
@@ -149,14 +149,28 @@ class GeminiSearchCrawler:
                 text = resp.text or ""
 
                 if grounded:
+                    # 从 response text 提取标题（格式 [title](url) 或 **title**）
+                    import re as _re
+                    text_titles: dict[str, str] = {}
+                    for m in _re.finditer(r'\[([^\]]{5,120})\]\((https?://[^\)]+)\)', text):
+                        t, u = m.group(1).strip(), m.group(2).strip()
+                        if u not in text_titles and not t.startswith("http"):
+                            text_titles[u] = t
+
+                    added = 0
                     for item in grounded:
                         url = item["url"]
                         if url in seen_urls:
                             continue
                         seen_urls.add(url)
+                        # 优先用文本里提取的标题，其次用 grounding 标题，再次用域名
+                        title = (text_titles.get(url) or item["title"] or "").strip()
+                        if not title or "." in title.split("/")[-1][:6]:
+                            # 标题像域名，用响应文本第一个相关句子
+                            title = item["title"] or url
                         results.append({
                             "id": f"gemini-search:{url}",
-                            "title": item["title"] or url,
+                            "title": title,
                             "url": url,
                             "summary": "",
                             "authors": [],
@@ -164,7 +178,8 @@ class GeminiSearchCrawler:
                             "source": name,
                             "source_category": category,
                         })
-                    logger.info(f"  {name}: {len(grounded)} 条（grounding）")
+                        added += 1
+                    logger.info(f"  {name}: {added} 条（grounding）")
                 else:
                     # 降级：从文本中提取 URL
                     urls = _extract_urls_from_text(text)
