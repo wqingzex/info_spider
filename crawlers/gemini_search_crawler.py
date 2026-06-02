@@ -103,15 +103,21 @@ class GeminiSearchCrawler:
         results = []
         seen_urls: set[str] = set()
 
-        for task in all_tasks:
+        # gemini-2.5-flash 免费层约 10 RPM，每次调用前等待 7 秒
+        CALL_INTERVAL = 7
+
+        for i, task in enumerate(all_tasks):
             name = task["name"]
             category = task["category"]
             prompt = task["prompt"]
 
+            if i > 0:
+                time.sleep(CALL_INTERVAL)
+
             try:
                 logger.info(f"Gemini 搜索: {name}")
                 resp = client.models.generate_content(
-                    model="gemini-2.0-flash",  # search grounding 需要 flash
+                    model="gemini-2.5-flash",
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         tools=[types.Tool(google_search=types.GoogleSearch())],
@@ -158,11 +164,43 @@ class GeminiSearchCrawler:
                         })
                     logger.info(f"  {name}: {len(new)} 条（文本提取）")
 
-                # 免费版速率限制：2.0 flash 15 RPM
-                time.sleep(5)
-
             except Exception as e:
-                logger.warning(f"Gemini 搜索 {name} 失败: {e}")
+                err = str(e)
+                if "429" in err:
+                    import re
+                    m = re.search(r"retryDelay.*?(\d+)s", err)
+                    wait = int(m.group(1)) + 3 if m else 30
+                    logger.warning(f"Gemini 搜索 {name} 速率限制，等 {wait}s 后重试...")
+                    time.sleep(wait)
+                    try:
+                        resp = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                tools=[types.Tool(google_search=types.GoogleSearch())],
+                                temperature=0.1,
+                            ),
+                        )
+                        grounded = _extract_grounding_urls(resp)
+                        for item in grounded:
+                            url = item["url"]
+                            if url not in seen_urls:
+                                seen_urls.add(url)
+                                results.append({
+                                    "id": f"gemini-search:{url}",
+                                    "title": item["title"] or url,
+                                    "url": url,
+                                    "summary": "",
+                                    "authors": [],
+                                    "published": datetime.now(timezone.utc).isoformat(),
+                                    "source": name,
+                                    "source_category": category,
+                                })
+                        logger.info(f"  {name}: {len(grounded)} 条（重试成功）")
+                    except Exception as e2:
+                        logger.warning(f"Gemini 搜索 {name} 重试失败: {e2}")
+                else:
+                    logger.warning(f"Gemini 搜索 {name} 失败: {e}")
 
         logger.info(f"Gemini 搜索总计: {len(results)} 条")
         return results

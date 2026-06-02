@@ -160,7 +160,7 @@ def analyze_with_gemini(items: list[dict], model: str, max_tokens: int) -> list[
                 items[start: start + MAX_BATCH_SIZE] = _parse_ai_response(text, batch)
                 if try_model != model:
                     logger.info(f"已降级到 {try_model}")
-                time.sleep(4)  # 免费版 15 RPM
+                time.sleep(7)  # gemini-2.5-flash 免费层约 10 RPM
                 success = True
                 break
             except Exception as e:

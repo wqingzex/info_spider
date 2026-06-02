@@ -162,7 +162,7 @@ blogs:
 
 ai:
   # Gemini（优先，免费）：https://aistudio.google.com/app/apikey
-  gemini_model: "gemini-2.0-flash-lite"   # 免费：1500次/天，30 RPM
+  gemini_model: "gemini-2.5-flash"         # 免费层推荐，质量更高
   # gemini_model: "gemini-2.0-flash"       # 免费：1500次/天，15 RPM，质量更高
   # gemini_model: "gemini-2.5-flash"       # 免费：500次/天，推理更强
 
