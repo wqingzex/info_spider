@@ -8,3 +8,6 @@ python-dateutil==2.9.0
 # AI 分析（按需安装其中之一）
 # Gemini（免费，推荐）：pip install google-genai
 # Anthropic（付费）：pip install anthropic
+
+# Groq（免费AI分析，推荐）：pip install groq
+# groq

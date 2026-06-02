@@ -78,6 +78,37 @@ def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
     return items
 
 
+
+# ─── Groq ────────────────────────────────────────────────────────────────────
+
+def analyze_with_groq(items: list[dict], max_tokens: int) -> list[dict]:
+    """使用 Groq API（免费：500,000 tokens/天，无需绑卡）
+    申请：https://console.groq.com
+    """
+    try:
+        from groq import Groq
+    except ImportError:
+        logger.warning("groq 未安装：pip install groq")
+        return items
+
+    client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+    for start in range(0, len(items), MAX_BATCH_SIZE):
+        batch = items[start: start + MAX_BATCH_SIZE]
+        prompt = _build_prompt(batch)
+        try:
+            chat = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=0.1,
+            )
+            text = chat.choices[0].message.content or ""
+            items[start: start + MAX_BATCH_SIZE] = _parse_ai_response(text, batch)
+            time.sleep(1)
+        except Exception as e:
+            logger.warning(f"Groq 批次 {start} 失败: {e}")
+    return items
+
 # ─── Gemini ──────────────────────────────────────────────────────────────────
 
 # 模型降级顺序：lite → flash → 1.5-flash
@@ -217,17 +248,22 @@ def analyze(items: list[dict], ai_config: dict) -> list[dict]:
     claude_model = ai_config.get("model", "claude-haiku-4-5-20251001")
     max_tokens = ai_config.get("max_tokens", 1024)
 
-    # 1. Gemini（免费，优先）
+    # 1. Groq（免费，无需绑卡，优先）
+    if os.environ.get("GROQ_API_KEY"):
+        logger.info("使用 Groq API 分析 (llama-3.3-70b，免费)")
+        return analyze_with_groq(items, max_tokens)
+
+    # 2. Gemini（需绑卡，备用）
     if os.environ.get("GEMINI_API_KEY"):
-        logger.info(f"使用 Gemini API 分析 ({gemini_model}，免费)")
+        logger.info(f"使用 Gemini API 分析 ({gemini_model})")
         return analyze_with_gemini(items, gemini_model, max_tokens)
 
-    # 2. Anthropic API
+    # 3. Anthropic API
     if os.environ.get("ANTHROPIC_API_KEY"):
         logger.info(f"使用 Anthropic SDK 分析 ({claude_model})")
         return analyze_with_anthropic(items, claude_model, max_tokens)
 
-    # 3. 本地 claude CLI
+    # 4. 本地 claude CLI
     try:
         r = subprocess.run(["claude", "--version"], capture_output=True, timeout=5)
         if r.returncode == 0:
