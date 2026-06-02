@@ -1,45 +1,37 @@
-"""arXiv 论文爬取器 - 使用官方 Atom API"""
+"""arXiv 论文爬取器 - 使用 RSS 订阅而非 API，规避 GH Actions IP 封锁"""
 import time
 import logging
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
-import xml.etree.ElementTree as ET
+
+import feedparser
 
 from .http_client import build_client
 
 logger = logging.getLogger(__name__)
 
-ATOM_NS = "http://www.w3.org/2005/Atom"
+# arXiv RSS 按分类，每个 feed 含最新约 2000 条
+RSS_BASE = "https://rss.arxiv.org/rss/{cats}"
+
+_RELEVANCE_KEYWORDS = [
+    "vla", "vision language action", "embodied", "humanoid robot",
+    "manipulation policy", "diffusion policy", "imitation learning",
+    "sim-to-real", "sim2real", "dexterous", "robot learning",
+    "lerobot", "foundation model robot", "world model robot",
+    "reinforcement learning robot", "rl robot",
+]
+
+
+def _is_relevant(title: str, summary: str) -> bool:
+    text = (title + " " + summary).lower()
+    return any(kw in text for kw in _RELEVANCE_KEYWORDS)
 
 
 class ArxivCrawler:
-    BASE_URL = "http://export.arxiv.org/api/query"
-
     def __init__(self, config: dict, http_config: dict):
         self.config = config
-        self.timeout = http_config.get("timeout", 20)
-        self.delay = http_config.get("delay_between_requests", 1.5)
+        self.timeout = http_config.get("timeout", 30)
+        self.delay = http_config.get("delay_between_requests", 2)
         self.headers = http_config.get("headers", {})
-
-    def _fetch(self, params: dict) -> str | None:
-        """带重试的请求，指数退避应对 arXiv 限流"""
-        url = f"{self.BASE_URL}?{urlencode(params)}"
-        logger.info(f"arXiv query: {url}")
-        for attempt in range(3):
-            try:
-                with build_client(self.timeout, self.headers) as client:
-                    resp = client.get(url)
-                    resp.raise_for_status()
-                time.sleep(self.delay)
-                return resp.text
-            except Exception as e:
-                wait = 10 * (2 ** attempt)
-                if attempt < 2:
-                    logger.warning(f"arXiv 请求失败 (attempt {attempt+1}/3): {e}，等 {wait}s")
-                    time.sleep(wait)
-                else:
-                    logger.error(f"arXiv 爬取失败，已重试 3 次: {e}")
-        return None
 
     def crawl(self) -> list[dict]:
         results = []
@@ -48,73 +40,67 @@ class ArxivCrawler:
         days_back = self.config.get("days_back", 3)
         cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
         categories = self.config.get("categories", ["cs.RO"])
-        keywords = self.config.get("keywords", [])
         max_results = self.config.get("max_results", 50)
 
-        cat_query = " OR ".join(f"cat:{c}" for c in categories)
-        if keywords:
-            kw_query = " OR ".join(f'ti:"{k}" OR abs:"{k}"' for k in keywords[:6])
-            query = f"({cat_query}) AND ({kw_query})"
-        else:
-            query = cat_query
-
-        params = {
-            "search_query": query,
-            "sortBy": "submittedDate",
-            "sortOrder": "descending",
-            "max_results": max_results,
-            "start": 0,
-        }
-
-        xml_text = self._fetch(params)
-        if not xml_text:
-            logger.info("arXiv: 获取 0 篇论文")
-            return results
+        # 合并分类订阅一个 RSS（arXiv 支持 cat1+cat2 语法）
+        cats = "+".join(categories)
+        url = RSS_BASE.format(cats=cats)
+        logger.info(f"arXiv RSS: {url}")
 
         try:
-            root = ET.fromstring(xml_text)
-        except ET.ParseError as e:
-            logger.error(f"arXiv XML 解析失败: {e}")
-            return results
+            with build_client(self.timeout, self.headers) as client:
+                resp = client.get(url)
+                resp.raise_for_status()
+            time.sleep(self.delay)
 
-        for entry in root.findall(f"{{{ATOM_NS}}}entry"):
-            arxiv_id = entry.findtext(f"{{{ATOM_NS}}}id", "").split("/abs/")[-1]
-            if arxiv_id in seen_ids:
-                continue
+            feed = feedparser.parse(resp.text)
+            for entry in feed.entries:
+                # arXiv RSS id 格式: https://arxiv.org/abs/XXXX.XXXXX
+                arxiv_id = entry.get("id", "").split("/abs/")[-1]
+                if not arxiv_id or arxiv_id in seen_ids:
+                    continue
 
-            published_str = entry.findtext(f"{{{ATOM_NS}}}published", "")
-            try:
-                published = datetime.fromisoformat(published_str.replace("Z", "+00:00"))
-            except Exception:
-                continue
+                # 发布日期
+                pub = entry.get("published_parsed") or entry.get("updated_parsed")
+                if pub:
+                    try:
+                        published = datetime(*pub[:6], tzinfo=timezone.utc)
+                    except Exception:
+                        continue
+                    if published < cutoff:
+                        continue
+                else:
+                    continue
 
-            if published < cutoff:
-                continue
+                title = entry.get("title", "").strip().replace("\n", " ")
+                summary = entry.get("summary", "").strip().replace("\n", " ")[:500]
+                link = entry.get("link", f"https://arxiv.org/abs/{arxiv_id}")
 
-            title = entry.findtext(f"{{{ATOM_NS}}}title", "").strip().replace("\n", " ")
-            summary = entry.findtext(f"{{{ATOM_NS}}}summary", "").strip().replace("\n", " ")[:500]
-            authors = [
-                a.findtext(f"{{{ATOM_NS}}}name", "")
-                for a in entry.findall(f"{{{ATOM_NS}}}author")
-            ]
-            link = entry.findtext(f"{{{ATOM_NS}}}id", "")
-            categories_found = [
-                tag.get("term", "")
-                for tag in entry.findall(f"{{{ATOM_NS}}}category")
-            ]
+                # 关键词相关性过滤
+                if not _is_relevant(title, summary):
+                    continue
 
-            seen_ids.add(arxiv_id)
-            results.append({
-                "id": f"arxiv:{arxiv_id}",
-                "title": title,
-                "url": link,
-                "summary": summary,
-                "authors": authors[:5],
-                "categories": categories_found,
-                "published": published.isoformat(),
-                "source": "arXiv",
-                "source_category": "paper",
-            })
+                # 分类标签
+                tags = [t.get("term", "") for t in entry.get("tags", [])]
+
+                seen_ids.add(arxiv_id)
+                results.append({
+                    "id": f"arxiv:{arxiv_id}",
+                    "title": title,
+                    "url": link,
+                    "summary": summary,
+                    "authors": [a.get("name", "") for a in entry.get("authors", [])][:5],
+                    "categories": tags,
+                    "published": published.isoformat(),
+                    "source": "arXiv",
+                    "source_category": "paper",
+                })
+
+                if len(results) >= max_results:
+                    break
+
+        except Exception as e:
+            logger.error(f"arXiv RSS 爬取失败: {e}")
 
         logger.info(f"arXiv: 获取 {len(results)} 篇论文")
         return results

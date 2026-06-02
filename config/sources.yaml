@@ -135,41 +135,16 @@ blogs:
 
 
 
-  - name: "Covariant"
-    url: "https://covariant.ai/insights"
-    category: "company_intl"
-    article_selector: "article, [class*='insight']"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
 
-  # 国内公司
-  - name: "智元机器人"
-    url: "https://www.zhiyuan-robot.com/dynamic"
+  - name: "智元机器人(Agibot)"
+    url: "https://www.agibot.com.cn/news"
     category: "company_cn"
     article_selector: "[class*='news'], [class*='dynamic'], article"
     title_selector: "h1, h2, h3, [class*='title']"
     link_selector: "a"
 
-  - name: "傅里叶智能"
-    url: "https://www.fftai.com/news"
-    category: "company_cn"
-    article_selector: "[class*='news'], article"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
 
-  - name: "优必选"
-    url: "https://www.ubtrobot.com/cn/news/"
-    category: "company_cn"
-    article_selector: "[class*='news'], article, li"
-    title_selector: "h1, h2, h3, [class*='title']"
-    link_selector: "a"
 
-  - name: "开普勒机器人"
-    url: "https://www.kepler.team/news"
-    category: "company_cn"
-    article_selector: "[class*='news'], article"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
 
   - name: "乐聚机器人"
     url: "https://www.lejurobot.com/news"
