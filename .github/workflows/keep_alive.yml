@@ -1,0 +1,24 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # 每周一 UTC 00:30 提交一次，防止 schedule 被 GitHub 静默停用
+    - cron: '30 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit keep-alive
+        run: |
+          git config user.name "VLA Spider Bot"
+          git config user.email "vla-spider-bot@users.noreply.github.com"
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > data/last_ping.txt
+          git add data/last_ping.txt
+          git commit -m "chore: keep-alive ping" || echo "nothing to commit"
+          git push
