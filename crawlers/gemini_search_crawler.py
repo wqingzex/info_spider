@@ -247,6 +247,36 @@ class GeminiSearchCrawler:
                         logger.info(f"  {name}: {len(grounded)} 条（重试成功）")
                     except Exception as e2:
                         logger.warning(f"Gemini 搜索 {name} 重试失败: {e2}")
+                elif "503" in err or "UNAVAILABLE" in err:
+                    logger.warning(f"Gemini 搜索 {name} 503 过载，等 30s 重试...")
+                    time.sleep(30)
+                    try:
+                        resp = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                tools=[types.Tool(google_search=types.GoogleSearch())],
+                                temperature=0.1,
+                            ),
+                        )
+                        grounded = _extract_grounding_urls(resp)
+                        text = resp.text or ""
+                        import re as _re2
+                        text_titles2 = {u: t for t, u in _re2.findall(r'\[([^\]]{5,120})\]\((https?://[^\)]+)\)', text)}
+                        for item in grounded:
+                            url = item["url"]
+                            if url not in seen_urls:
+                                from urllib.parse import urlparse as _up2
+                                if not any(_up2(url).netloc.lstrip("www.") == b for b in _BLOCKED_DOMAINS):
+                                    seen_urls.add(url)
+                                    title = (text_titles2.get(url) or item["title"] or url).strip()
+                                    results.append({"id": f"gemini-search:{url}", "title": title, "url": url,
+                                                    "summary": "", "authors": [],
+                                                    "published": datetime.now(timezone.utc).isoformat(),
+                                                    "source": name, "source_category": category})
+                        logger.info(f"  {name}: {len(grounded)} 条（重试成功）")
+                    except Exception as e2:
+                        logger.warning(f"Gemini 搜索 {name} 重试失败: {e2}")
                 else:
                     logger.warning(f"Gemini 搜索 {name} 失败: {e}")
 
