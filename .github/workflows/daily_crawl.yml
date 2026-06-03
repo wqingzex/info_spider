@@ -2,8 +2,8 @@ name: Daily VLA Intelligence Crawl
 
 on:
   schedule:
-    # 每天北京时间 08:37 (UTC+8) → UTC 00:37，冷门时段减少队列竞争
-    - cron: '37 0 * * *'
+    # 每天北京时间 05:00 (UTC+8) → UTC 21:00（前一天），凌晨低峰
+    - cron: '0 21 * * *'
   workflow_dispatch:
     inputs:
       date:
