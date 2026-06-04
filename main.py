@@ -98,10 +98,10 @@ def run(args) -> int:
         # 按相关性过滤（相关性 >= 3 才保留，只在有 AI 分析时）
         with_relevance = [i for i in new_items if "relevance" in i]
         if with_relevance:
-            high_rel = [i for i in new_items if i.get("relevance", 5) >= 3]
+            high_rel = [i for i in new_items if i.get("relevance", 5) >= 4]
             filtered_out = len(new_items) - len(high_rel)
             if filtered_out > 0:
-                logger.info(f"AI 过滤低相关性内容: {filtered_out} 条")
+                logger.info(f"AI 过滤低相关性内容（relevance<4）: {filtered_out} 条")
             new_items = high_rel
 
     # 9. 生成报告
