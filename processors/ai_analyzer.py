@@ -65,7 +65,7 @@ def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
         start = m.start()
         end = text.rfind("]") + 1
         if end <= start:
-            logger.warning(f"AI 响应 JSON 数组结构异常")
+            logger.warning(f"AI 响应 JSON 数组结构异常，原文: {text[:300]}")
             return items
 
         parsed = json.loads(text[start:end])
