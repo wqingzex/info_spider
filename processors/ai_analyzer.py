@@ -20,7 +20,7 @@ for _k in ("ALL_PROXY", "all_proxy"):
 
 logger = logging.getLogger(__name__)
 
-MAX_BATCH_SIZE = 20  # Gemini 免费版每次不要太大，避免超 token 限制
+MAX_BATCH_SIZE = 10  # 减小批次，避免 Gemini 长响应解析问题
 
 
 def _build_prompt(items: list[dict]) -> str:
@@ -56,14 +56,19 @@ def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
             import re
             text = re.sub(r"```(?:json)?\s*", "", text).strip()
 
-        start = text.find("[")
-        end = text.rfind("]") + 1
-        if start == -1 or end == 0:
-            logger.debug(f"AI 响应未找到 JSON 数组: {text[:200]}")
+        # 找第一个 JSON 数组起点（紧跟 [ 后有 { 的位置）
+        import re as _re_inner
+        m = _re_inner.search(r'\[\s*\{', text)
+        if not m:
+            logger.warning(f"AI 响应未找到 JSON 数组，原文: {text[:300]}")
             return items
-        response = text  # 用清理后的文本
+        start = m.start()
+        end = text.rfind("]") + 1
+        if end <= start:
+            logger.warning(f"AI 响应 JSON 数组结构异常")
+            return items
 
-        parsed = json.loads(response[start:end])
+        parsed = json.loads(text[start:end])
         index_map = {r["index"]: r for r in parsed if "index" in r}
 
         for i, item in enumerate(items):

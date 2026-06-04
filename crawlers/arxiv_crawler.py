@@ -73,7 +73,11 @@ class ArxivCrawler:
                     continue
 
                 title = entry.get("title", "").strip().replace("\n", " ")
-                summary = entry.get("summary", "").strip().replace("\n", " ")[:500]
+                raw_summary = entry.get("summary", "").strip().replace("\n", " ")
+                # 去掉 arXiv RSS 的 "arXiv:XXXX Announce Type: new Abstract: " 前缀
+                import re as _re
+                raw_summary = _re.sub(r"arXiv:\S+\s+Announce Type:\s+\w+\s+Abstract:\s*", "", raw_summary).strip()
+                summary = raw_summary[:500]
                 link = entry.get("link", f"https://arxiv.org/abs/{arxiv_id}")
 
                 # 关键词相关性过滤
