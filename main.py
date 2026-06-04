@@ -3,7 +3,7 @@
 import sys
 import logging
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import yaml
 
@@ -30,7 +30,9 @@ def run(args) -> int:
     output_cfg = config.get("output", {})
     ai_cfg = config.get("ai", {})
 
-    date_str = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # 使用北京时间（UTC+8）作为日期，与用户预期一致
+    beijing_tz = timezone(timedelta(hours=8))
+    date_str = args.date or datetime.now(beijing_tz).strftime("%Y-%m-%d")
     logger.info(f"=== VLA Spider 开始爬取 [{date_str}] ===")
 
     all_items: list[dict] = []
