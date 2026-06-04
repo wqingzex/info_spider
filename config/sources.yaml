@@ -1,185 +1,127 @@
-# VLA & 具身智能信息源配置
-
 arxiv:
   categories:
-    - cs.RO   # Robotics
-    - cs.AI   # Artificial Intelligence
-    - cs.CV   # Computer Vision
-    - cs.LG   # Machine Learning
+  - cs.RO
+  - cs.AI
+  - cs.CV
+  - cs.LG
   keywords:
-    - "VLA"
-    - "vision language action"
-    - "embodied intelligence"
-    - "embodied AI"
-    - "robot learning"
-    - "humanoid robot"
-    - "manipulation policy"
-    - "imitation learning robot"
-    - "diffusion policy"
-    - "lerobot"
-    - "foundation model robot"
-    - "world model robot"
-    - "reinforcement learning robot"
-    - "RL robot manipulation"
-    - "sim-to-real"
-    - "dexterous manipulation"
+  - VLA
+  - vision language action
+  - embodied intelligence
+  - embodied AI
+  - robot learning
+  - humanoid robot
+  - manipulation policy
+  - imitation learning robot
+  - diffusion policy
+  - lerobot
+  - foundation model robot
+  - world model robot
+  - reinforcement learning robot
+  - RL robot manipulation
+  - sim-to-real
+  - dexterous manipulation
   max_results: 50
   days_back: 3
-
 rss:
   feeds:
-    # 行业媒体（国内）
-    - name: "机器之心"
-      url: "{RSSHUB_URL}/jiqizhixin/articles"
-      category: "media_cn"
-      keywords: ["机器人", "具身", "VLA", "人形", "强化学习"]
-      rsshub: true
-
-    - name: "量子位"
-      url: "{RSSHUB_URL}/qbitai/articles"
-      category: "media_cn"
-      keywords: ["机器人", "具身", "VLA", "人形"]
-      rsshub: true
-
-    - name: "新智元"
-      url: "{RSSHUB_URL}/xinzhiyuan/articles"
-      category: "media_cn"
-      keywords: ["机器人", "具身", "VLA", "人形"]
-      rsshub: true
-
-
-    - name: "TechCrunch AI"
-      url: "https://techcrunch.com/category/artificial-intelligence/feed/"
-      category: "media_intl"
-      keywords: ["robot", "embodied", "VLA", "humanoid"]
-
-
-    - name: "Google DeepMind Blog"
-      url: "https://deepmind.google/blog/rss.xml"
-      category: "company_intl"
-      keywords: ["robot", "embodied", "manipulation", "VLA"]
-
-    - name: "OpenAI Blog"
-      url: "https://openai.com/blog/rss.xml"
-      category: "company_intl"
-      keywords: ["robot", "embodied"]
-
-
-    - name: "Hugging Face Blog"
-      url: "https://huggingface.co/blog/feed.xml"
-      category: "company_intl"
-      keywords: ["robot", "embodied", "lerobot", "VLA"]
-
-    # 知乎话题 (via RSSHub，需配置 RSSHUB_URL 环境变量)
-    - name: "知乎-机器人"
-      url: "{RSSHUB_URL}/zhihu/topic/20013775"
-      category: "community_cn"
-      keywords: ["VLA", "具身", "人形", "强化学习"]
-      rsshub: true
-
-    - name: "知乎-具身智能"
-      url: "{RSSHUB_URL}/zhihu/topic/26685193"
-      category: "community_cn"
-      keywords: []
-      rsshub: true
-
-    - name: "Bilibili-具身智能"
-      url: "{RSSHUB_URL}/bilibili/search/具身智能/pubdate"
-      category: "community_cn"
-      keywords: ["具身", "VLA", "人形"]
-      rsshub: true
-
+  - name: TechCrunch AI
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+    category: media_intl
+    keywords:
+    - robot
+    - embodied
+    - VLA
+    - humanoid
+  - name: Google DeepMind Blog
+    url: https://deepmind.google/blog/rss.xml
+    category: company_intl
+    keywords:
+    - robot
+    - embodied
+    - manipulation
+    - VLA
+  - name: OpenAI Blog
+    url: https://openai.com/blog/rss.xml
+    category: company_intl
+    keywords:
+    - robot
+    - embodied
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+    category: company_intl
+    keywords:
+    - robot
+    - embodied
+    - lerobot
+    - VLA
 github:
   queries:
-    - "VLA vision language action robot"
-    - "embodied intelligence robot learning"
-    - "humanoid robot policy"
-    - "lerobot manipulation"
-    - "diffusion policy robot"
-    - "openpi robot"
-  language: "Python"
-  sort: "updated"
+  - VLA vision language action robot
+  - embodied intelligence robot learning
+  - humanoid robot policy
+  - lerobot manipulation
+  - diffusion policy robot
+  - openpi robot
+  language: Python
+  sort: updated
   max_per_query: 5
-
 blogs:
-  # 需要直接抓取 HTML 的公司官网（无 RSS）
-  # 国际公司
-  - name: "Physical Intelligence (pi.ai)"
-    url: "https://www.physicalintelligence.company/blog"
-    category: "company_intl"
-    article_selector: "article, .blog-post, [class*='post']"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
-
-  - name: "Figure AI"
-    url: "https://www.figure.ai/news"
-    category: "company_intl"
-    article_selector: "article, [class*='news']"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
-
-  - name: "1X Technologies"
-    url: "https://www.1x.tech/discover"
-    category: "company_intl"
-    article_selector: "article, [class*='post'], [class*='story']"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
-
-  - name: "Agility Robotics"
-    url: "https://agilityrobotics.com/news"
-    category: "company_intl"
-    article_selector: "[class*='news'], article"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
-
-
-
-
-
-  - name: "智元机器人(Agibot)"
-    url: "https://www.agibot.com.cn/news"
-    category: "company_cn"
-    article_selector: "[class*='news'], [class*='dynamic'], article"
-    title_selector: "h1, h2, h3, [class*='title']"
-    link_selector: "a"
-
-
-
-
-  - name: "乐聚机器人"
-    url: "https://www.lejurobot.com/news"
-    category: "company_cn"
-    article_selector: "[class*='news'], article"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
-
-  - name: "达闼科技"
-    url: "https://www.cloudminds.com/zh/news"
-    category: "company_cn"
-    article_selector: "[class*='news'], article"
-    title_selector: "h1, h2, h3"
-    link_selector: "a"
-
+- name: Physical Intelligence (pi.ai)
+  url: https://www.physicalintelligence.company/blog
+  category: company_intl
+  article_selector: article, .blog-post, [class*='post']
+  title_selector: h1, h2, h3
+  link_selector: a
+- name: Figure AI
+  url: https://www.figure.ai/news
+  category: company_intl
+  article_selector: article, [class*='news']
+  title_selector: h1, h2, h3
+  link_selector: a
+- name: 1X Technologies
+  url: https://www.1x.tech/discover
+  category: company_intl
+  article_selector: article, [class*='post'], [class*='story']
+  title_selector: h1, h2, h3
+  link_selector: a
+- name: Agility Robotics
+  url: https://agilityrobotics.com/news
+  category: company_intl
+  article_selector: '[class*=''news''], article'
+  title_selector: h1, h2, h3
+  link_selector: a
+- name: 智元机器人(Agibot)
+  url: https://www.agibot.com.cn/news
+  category: company_cn
+  article_selector: '[class*=''news''], [class*=''dynamic''], article'
+  title_selector: h1, h2, h3, [class*='title']
+  link_selector: a
+- name: 乐聚机器人
+  url: https://www.lejurobot.com/news
+  category: company_cn
+  article_selector: '[class*=''news''], article'
+  title_selector: h1, h2, h3
+  link_selector: a
+- name: 达闼科技
+  url: https://www.cloudminds.com/zh/news
+  category: company_cn
+  article_selector: '[class*=''news''], article'
+  title_selector: h1, h2, h3
+  link_selector: a
 ai:
-  # Gemini（优先，免费）：https://aistudio.google.com/app/apikey
-  gemini_model: "gemini-2.5-flash"         # 免费层推荐，质量更高
-  # gemini_model: "gemini-2.0-flash"       # 免费：1500次/天，15 RPM，质量更高
-  # gemini_model: "gemini-2.5-flash"       # 免费：500次/天，推理更强
-
-  # Claude（备用，付费/CLI额度）
-  model: "claude-haiku-4-5-20251001"
-
+  gemini_model: gemini-2.5-flash
+  model: claude-haiku-4-5-20251001
   max_tokens: 1024
-
 output:
-  base_dir: "output"
-  data_dir: "data"
-  seen_urls_file: "data/seen_urls.json"
+  base_dir: output
+  data_dir: data
+  seen_urls_file: data/seen_urls.json
   max_seen_urls: 10000
-
 http:
   timeout: 20
   retries: 2
   delay_between_requests: 1.5
   headers:
-    User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko)
+      Chrome/120.0.0.0 Safari/537.36

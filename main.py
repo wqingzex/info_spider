@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 import yaml
 
-from crawlers import ArxivCrawler, RssCrawler, GithubCrawler, BlogCrawler, GeminiSearchCrawler
+from crawlers import ArxivCrawler, RssCrawler, GithubCrawler, BlogCrawler
 from processors import Deduplicator, ReportFormatter, group_items
 from processors.ai_analyzer import analyze
 
@@ -73,15 +73,6 @@ def run(args) -> int:
         except Exception as e:
             logger.error(f"博客爬取异常: {e}")
 
-    # 5. Gemini Search（需配置 GEMINI_API_KEY，免费）
-    if not args.skip_gemini_search:
-        try:
-            crawler = GeminiSearchCrawler(http_cfg)
-            items = crawler.crawl()
-            all_items.extend(items)
-        except Exception as e:
-            logger.error(f"Gemini Search 异常: {e}")
-
     logger.info(f"爬取完成，共 {len(all_items)} 条（去重前）")
 
     # 6. 去重
@@ -136,7 +127,6 @@ def main():
     parser.add_argument("--skip-rss", action="store_true")
     parser.add_argument("--skip-github", action="store_true")
     parser.add_argument("--skip-blogs", action="store_true")
-    parser.add_argument("--skip-gemini-search", action="store_true", help="跳过 Gemini Search")
     args = parser.parse_args()
 
     sys.exit(run(args))
