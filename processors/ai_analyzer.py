@@ -56,19 +56,29 @@ def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
             import re
             text = re.sub(r"```(?:json)?\s*", "", text).strip()
 
-        # 找第一个 JSON 数组起点（紧跟 [ 后有 { 的位置）
+        # 找第一个 JSON 数组起点
         import re as _re_inner
         m = _re_inner.search(r'\[\s*\{', text)
         if not m:
             logger.warning(f"AI 响应未找到 JSON 数组，原文: {text[:300]}")
             return items
         start = m.start()
-        end = text.rfind("]") + 1
-        if end <= start:
+
+        # 从 start 到结尾整体解析（处理截断情况）
+        parsed = None
+        # 先尝试完整解析
+        for end_pos in [len(text), text.rfind("]") + 1]:
+            if end_pos <= start:
+                continue
+            try:
+                parsed = json.loads(text[start:end_pos])
+                break
+            except json.JSONDecodeError:
+                pass
+
+        if parsed is None:
             logger.warning(f"AI 响应 JSON 数组结构异常，原文: {text[:300]}")
             return items
-
-        parsed = json.loads(text[start:end])
         index_map = {r["index"]: r for r in parsed if "index" in r}
 
         for i, item in enumerate(items):
@@ -112,7 +122,7 @@ def analyze_with_groq(items: list[dict], max_tokens: int) -> list[dict]:
             chat = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
+                max_tokens=3000,
                 temperature=0.1,
             )
             text = chat.choices[0].message.content or ""
