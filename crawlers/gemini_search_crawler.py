@@ -123,7 +123,7 @@ class GeminiSearchCrawler:
         seen_urls: set[str] = set()
 
         # gemini-2.5-flash 免费层约 10 RPM，每次调用前等待 7 秒
-        CALL_INTERVAL = 15
+        CALL_INTERVAL = 10
 
         for i, task in enumerate(all_tasks):
             name = task["name"]
