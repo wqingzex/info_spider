@@ -77,7 +77,7 @@ def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
                 pass
 
         if parsed is None:
-            logger.warning(f"AI 响应 JSON 数组结构异常，原文: {text[:300]}")
+            logger.warning("AI 响应 JSON 数组结构异常，跳过本批次")
             return items
         index_map = {r["index"]: r for r in parsed if "index" in r}
 
