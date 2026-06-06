@@ -27,18 +27,23 @@ def _build_prompt(items: list[dict]) -> str:
     lines = ["你是具身智能/机器人领域顶级研究员，请精读以下论文摘要并提炼关键信息。\n禁止泛泛而谈，每个字段必须来自原文具体内容。\n"]
     for i, item in enumerate(items):
         title = item.get("title", "")
-        summary = item.get("summary", "")[:1000]
-        lines.append(f"[{i}] 标题: {title}\n    摘要: {summary}")
+        summary = item.get("summary", "")[:800]
+        intro = item.get("intro", "")[:800]
+        body = f"摘要: {summary}"
+        if intro:
+            body += f"\n    引言: {intro}"
+        lines.append(f"[{i}] 标题: {title}\n    {body}")
 
     lines.append("""
 请输出 JSON 数组（只输出数组）：
 [
   {
     "index": 0,
-    "problem": "现有方法具体存在什么问题？要写出具体场景和原因，例如：现有VLA在遮挡场景下因缺乏注意力机制导致操作失败率高。禁止写"X是挑战"这类废话",
-    "method": "该论文方法名称+核心机制（必须写方法名）+与现有方法的本质区别，例如：提出Gaze2Act，将人类注视点作为条件输入VLA，与现有方法相比首次引入眼动数据",
-    "result": "原文提到的具体实验结果：基准测试名称+数字指标，如"在RLBench上成功率提升15%"。原文无数字则写定性结论，禁止编造",
-    "summary": "一句话：该论文的核心创新是X，解决了Y问题，对具身智能领域的意义是Z",
+    "direction": "研究方向标签，从以下选一个：VLA基础/VLA+强化学习/VLA+世界模型/VLA+3D感知/数据采集与标注/灵巧操作/人形机器人/具身导航/多模态感知/其他",
+    "problem": "现有方法具体存在什么问题？写出具体场景和原因，如：现有VLA在遮挡场景下因缺乏注意力机制导致操作失败率高。禁止写"X是挑战"类废话",
+    "method": "方法名称+核心机制+与现有方法的本质区别，如：提出Gaze2Act，将人类注视点条件化输入VLA，首次引入眼动数据指导注意力",
+    "result": "原文的具体实验结果（基准名称+数字），无数字则写关键定性结论，禁止编造",
+    "summary": "核心创新是X，解决了Y，意义是Z（一句话，要有信息量）",
     "relevance": 5
   }
 ]
@@ -90,6 +95,8 @@ def _parse_ai_response(response: str, items: list[dict]) -> list[dict]:
             if i in index_map:
                 r = index_map[i]
                 parts = []
+                if r.get("direction"):
+                    item["direction"] = r["direction"]
                 if r.get("problem") and r["problem"] != "无":
                     parts.append(f"**问题**: {r['problem']}")
                 if r.get("method"):

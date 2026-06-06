@@ -38,7 +38,9 @@ class ReportFormatter:
         ai_analysis = item.get("ai_analysis", "")
 
         lines = []
-        lines.append(f"### [{title}]({url})" if url else f"### {title}")
+        direction = item.get("direction", "")
+        direction_str = f" `{direction}`" if direction else ""
+        lines.append(f"### [{title}]({url}){direction_str}" if url else f"### {title}{direction_str}")
 
         meta_parts = []
         if source:

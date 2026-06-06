@@ -87,12 +87,32 @@ class ArxivCrawler:
                 # 分类标签
                 tags = [t.get("term", "") for t in entry.get("tags", [])]
 
+                # 尝试从 arXiv HTML 获取 Introduction（前 1200 字符）
+                intro = ""
+                try:
+                    html_url = f"https://arxiv.org/html/{arxiv_id}"
+                    with build_client(15, self.headers) as hc:
+                        hr = hc.get(html_url)
+                    if hr.status_code == 200:
+                        from bs4 import BeautifulSoup as _BS
+                        soup = _BS(hr.text, "lxml")
+                        # 找 Introduction 节标题后的段落
+                        for sec in soup.find_all(["section", "div"]):
+                            heading = sec.find(["h1","h2","h3","h4"])
+                            if heading and "introduction" in heading.get_text(strip=True).lower():
+                                paras = sec.find_all("p")
+                                intro = " ".join(p.get_text(" ", strip=True) for p in paras[:4])[:1200]
+                                break
+                except Exception:
+                    pass
+
                 seen_ids.add(arxiv_id)
                 results.append({
                     "id": f"arxiv:{arxiv_id}",
                     "title": title,
                     "url": link,
                     "summary": summary,
+                    "intro": intro,
                     "authors": [a.get("name", "") for a in entry.get("authors", [])][:5],
                     "categories": tags,
                     "published": published.isoformat(),
