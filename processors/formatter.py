@@ -57,10 +57,10 @@ class ReportFormatter:
 
         if ai_analysis:
             lines.append("")
-            for ai_line in ai_analysis.split("\n"):
-                if ai_line.strip():
-                    lines.append(ai_line)
-                    lines.append("")
+            ai_lines = [l for l in ai_analysis.split("\n") if l.strip()]
+            for ai_line in ai_lines:
+                lines.append(ai_line)
+                lines.append("")
 
         cross_refs = item.get("cross_refs", [])
         if cross_refs:

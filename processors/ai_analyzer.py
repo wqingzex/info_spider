@@ -24,21 +24,21 @@ MAX_BATCH_SIZE = 10  # 减小批次，避免 Gemini 长响应解析问题
 
 
 def _build_prompt(items: list[dict]) -> str:
-    lines = ["你是具身智能/机器人领域专家，请分析以下内容并用中文输出结构化摘要。\n"]
+    lines = ["你是具身智能/机器人领域顶级研究员，请精读以下论文摘要并提炼关键信息。\n禁止泛泛而谈，每个字段必须来自原文具体内容。\n"]
     for i, item in enumerate(items):
         title = item.get("title", "")
-        summary = item.get("summary", "")[:300]
-        lines.append(f"[{i}] 标题: {title}\n    原文摘要: {summary}")
+        summary = item.get("summary", "")[:1000]
+        lines.append(f"[{i}] 标题: {title}\n    摘要: {summary}")
 
     lines.append("""
-请对每条内容输出 JSON 数组（只输出数组，不要其他文字）：
+请输出 JSON 数组（只输出数组）：
 [
   {
     "index": 0,
-    "problem": "该研究解决的核心问题或挑战（2-3句，说明背景和痛点）",
-    "method": "技术方案和创新点（3-4句，说明具体方法、关键设计和与已有方案的区别）",
-    "result": "实验结果和效果（2-3句，包含具体数据指标，没有则描述定性贡献）",
-    "summary": "综合总结（3-5句，提炼核心贡献和研究意义，面向具身智能研究者）",
+    "problem": "现有方法具体存在什么问题？要写出具体场景和原因，例如：现有VLA在遮挡场景下因缺乏注意力机制导致操作失败率高。禁止写"X是挑战"这类废话",
+    "method": "该论文方法名称+核心机制（必须写方法名）+与现有方法的本质区别，例如：提出Gaze2Act，将人类注视点作为条件输入VLA，与现有方法相比首次引入眼动数据",
+    "result": "原文提到的具体实验结果：基准测试名称+数字指标，如"在RLBench上成功率提升15%"。原文无数字则写定性结论，禁止编造",
+    "summary": "一句话：该论文的核心创新是X，解决了Y问题，对具身智能领域的意义是Z",
     "relevance": 5
   }
 ]
