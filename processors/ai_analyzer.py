@@ -245,6 +245,22 @@ def analyze_with_anthropic(items: list[dict], model: str, max_tokens: int) -> li
 
 # ─── Claude CLI ──────────────────────────────────────────────────────────────
 
+def _fix_tables(text: str) -> str:
+    """去掉表格行之间的空行，修复 markdown 表格渲染"""
+    lines = text.splitlines()
+    result = []
+    for i, line in enumerate(lines):
+        if line.strip() == "" and result:
+            prev = result[-1].strip()
+            next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+            # 跳过夹在两个表格行之间的空行
+            if (prev.startswith("|") or prev.startswith("|-")) and \
+               (next_line.startswith("|") or next_line.startswith("|-")):
+                continue
+        result.append(line)
+    return "\n".join(result)
+
+
 def _build_prompt_single(item: dict) -> str:
     title = item.get("title", "")
     summary = item.get("summary", "")[:1000]
@@ -277,7 +293,7 @@ relevance 评分标准：
 
 ---
 
-**根本矛盾**：<现有方法为什么不够用>
+**根本矛盾**：<现有方法为什么不够用，一句话>
 
 | 现有方法 | 问题所在 |
 |---|---|
@@ -289,6 +305,10 @@ relevance 评分标准：
 
 1. <核心机制1>
 2. <核心机制2>
+
+---
+
+**效果**：<原文中的实验结果，必须包含具体数字/基准名称，如"在 LIBERO-90 上成功率 87.3%，比基线提升 12pp"；若原文无具体指标则写"论文未提供定量结果">
 
 ---
 
@@ -328,7 +348,7 @@ def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
                     direction = line.split(":", 1)[1].strip()
                     body_start = j + 1
 
-            body = "\n".join(lines[body_start:]).strip()
+            body = _fix_tables("\n".join(lines[body_start:]).strip())
             item["relevance"] = relevance
             if direction:
                 item["direction"] = direction
