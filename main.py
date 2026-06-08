@@ -3,6 +3,7 @@
 import sys
 import logging
 import argparse
+import subprocess
 from datetime import datetime, timezone, timedelta
 
 import yaml
@@ -17,6 +18,22 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger("main")
+
+
+def _git_push(date_str: str) -> None:
+    try:
+        subprocess.run(["git", "add", f"output/{date_str}.md", "data/seen_urls.json"], check=True)
+        if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
+            logger.info("git: 无新变更，跳过提交")
+            return
+        subprocess.run(["git", "commit", "-m", f"feat: daily crawl {date_str}"], check=True)
+        result = subprocess.run(["git", "pull", "--no-rebase", "-X", "ours"], capture_output=True)
+        if result.returncode != 0:
+            logger.warning(f"git pull 失败: {result.stderr.decode()[:200]}")
+        subprocess.run(["git", "push"], check=True)
+        logger.info("git: 推送成功")
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"git push 失败: {e}")
 
 
 def load_config(config_path: str = "config/sources.yaml") -> dict:
@@ -95,14 +112,6 @@ def run(args) -> int:
     # 8. AI 分析（可选）
     if not args.no_ai:
         new_items = analyze(new_items, ai_cfg)
-        # 按相关性过滤（相关性 >= 3 才保留，只在有 AI 分析时）
-        with_relevance = [i for i in new_items if "relevance" in i]
-        if with_relevance:
-            high_rel = [i for i in new_items if i.get("relevance", 5) >= 4]
-            filtered_out = len(new_items) - len(high_rel)
-            if filtered_out > 0:
-                logger.info(f"AI 过滤低相关性内容（relevance<4）: {filtered_out} 条")
-            new_items = high_rel
 
     # 9. 生成报告
     formatter = ReportFormatter(output_cfg)
@@ -110,6 +119,10 @@ def run(args) -> int:
 
     # 10. 保存去重记录
     dedup.save()
+
+    # 11. 推送到 GitHub
+    if not args.no_push:
+        _git_push(date_str)
 
     logger.info(f"=== 完成 ===")
     logger.info(f"报告: {md_path}")
@@ -123,6 +136,7 @@ def main():
     parser.add_argument("--config", default="config/sources.yaml", help="配置文件路径")
     parser.add_argument("--date", default=None, help="指定日期 YYYY-MM-DD（默认今天）")
     parser.add_argument("--no-ai", action="store_true", help="跳过 AI 分析")
+    parser.add_argument("--no-push", action="store_true", help="跳过 git push")
     parser.add_argument("--skip-arxiv", action="store_true")
     parser.add_argument("--skip-rss", action="store_true")
     parser.add_argument("--skip-github", action="store_true")

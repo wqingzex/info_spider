@@ -245,29 +245,101 @@ def analyze_with_anthropic(items: list[dict], model: str, max_tokens: int) -> li
 
 # ─── Claude CLI ──────────────────────────────────────────────────────────────
 
+def _build_prompt_single(item: dict) -> str:
+    title = item.get("title", "")
+    summary = item.get("summary", "")[:1000]
+    intro = item.get("intro", "")[:1000]
+    content = f"标题：{title}\n\n摘要：{summary}"
+    if intro:
+        content += f"\n\n引言：{intro}"
+    return f"""你是具身智能/机器人领域的顶级研究员。请精读以下论文内容，用中文写一份深度分析。
+
+{content}
+
+---
+
+请按以下格式输出（直接输出，不要加任何前缀）：
+
+relevance: <1-5的整数>
+direction: <从以下选一个：VLA基础/VLA+强化学习/VLA+世界模型/VLA+3D感知/数据采集与标注/灵巧操作/人形机器人/具身导航/多模态感知/其他>
+
+<分析正文>
+
+relevance 评分标准：
+5 = 直接研究 VLA、具身智能、人形/四足机器人操作、机器人学习
+4 = 机器人操作/灵巧手/强化学习用于机器人/导航/sim-to-real
+3 = 具身AI基础技术且明确与机器人相关
+2 = 通用强化学习无机器人场景、通用NLP、非机器人视觉
+1 = 完全无关
+
+分析正文格式：
+这篇论文解决的是**<核心问题，加粗>**。
+
+---
+
+**根本矛盾**：<现有方法为什么不够用>
+
+| 现有方法 | 问题所在 |
+|---|---|
+| <方法1> | <具体缺陷> |
+
+---
+
+**他们的解法 <方法名>**：
+
+1. <核心机制1>
+2. <核心机制2>
+
+---
+
+**一句话概括**：<体现该论文独特贡献，禁止套话>
+
+要求：每个字段来自原文，禁止编造数据；若与机器人完全无关，relevance 填 1，正文只写一行说明原因。"""
+
+
 def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
-    """使用本地 claude CLI（利用 Claude Code 额度）"""
-    for start in range(0, len(items), MAX_BATCH_SIZE):
-        batch = items[start: start + MAX_BATCH_SIZE]
-        prompt = _build_prompt(batch)
+    """使用本地 claude CLI，每篇单独调用，输出叙述式分析"""
+    for i, item in enumerate(items):
+        prompt = _build_prompt_single(item)
         try:
             result = subprocess.run(
                 ["claude", "-p", prompt, "--output-format", "text"],
                 capture_output=True,
                 text=True,
-                timeout=90,
+                timeout=180,
             )
-            if result.returncode == 0:
-                items[start: start + MAX_BATCH_SIZE] = _parse_ai_response(
-                    result.stdout, batch
-                )
-            else:
-                logger.warning(f"claude CLI 错误: {result.stderr[:200]}")
+            if result.returncode != 0:
+                logger.warning(f"claude CLI 错误 [{i}]: {result.stderr[:200]}")
+                continue
+
+            text = result.stdout.strip()
+            lines = text.splitlines()
+            relevance = 3
+            direction = ""
+            body_start = 0
+            for j, line in enumerate(lines[:4]):
+                if line.startswith("relevance:"):
+                    try:
+                        relevance = int(line.split(":")[1].strip())
+                    except ValueError:
+                        pass
+                    body_start = j + 1
+                elif line.startswith("direction:"):
+                    direction = line.split(":", 1)[1].strip()
+                    body_start = j + 1
+
+            body = "\n".join(lines[body_start:]).strip()
+            item["relevance"] = relevance
+            if direction:
+                item["direction"] = direction
+            item["ai_analysis"] = body
+            logger.info(f"  [{i+1}/{len(items)}] 完成: relevance={relevance}")
+
         except FileNotFoundError:
             logger.warning("未找到 claude CLI")
             break
         except subprocess.TimeoutExpired:
-            logger.warning("claude CLI 超时")
+            logger.warning(f"claude CLI 超时 [{i+1}/{len(items)}]，跳过")
 
     return items
 
