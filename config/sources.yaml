@@ -22,7 +22,7 @@ arxiv:
   - sim-to-real
   - dexterous manipulation
   max_results: 50
-  days_back: 3
+  days_back: 1
 rss:
   feeds:
   - name: TechCrunch AI
