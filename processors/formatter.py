@@ -20,6 +20,37 @@ class ReportFormatter:
     def __init__(self, output_config: dict):
         self.base_dir = Path(output_config.get("base_dir", "output"))
 
+    def _extract_summary(self, item: dict) -> str:
+        ai = item.get("ai_analysis", "")
+        capture = False
+        for line in ai.splitlines():
+            if "一句话总结" in line:
+                capture = True
+                continue
+            if capture and line.strip():
+                return line.strip()
+        return ""
+
+    def _format_highlights(self, items: list[dict], top_n: int = 8) -> str:
+        scored = [i for i in items if i.get("ai_analysis")]
+        scored = sorted(scored, key=lambda x: (x.get("priority", 3), x.get("relevance", 3)), reverse=True)[:top_n]
+        if not scored:
+            return ""
+        lines = ["## 🌟 今日精选\n"]
+        for idx, item in enumerate(scored, 1):
+            title = item.get("title", "无标题")
+            url = item.get("url", "")
+            direction = item.get("direction", "")
+            priority = item.get("priority", 3)
+            summary = self._extract_summary(item)
+            direction_tag = f" `{direction}`" if direction else ""
+            title_link = f"[{title}]({url})" if url else title
+            lines.append(f"**{idx}.** {title_link}{direction_tag} `P{priority}`")
+            if summary:
+                lines.append(f"> {summary}")
+            lines.append("")
+        return "\n".join(lines)
+
     def _group_by_category(self, items: list[dict]) -> dict[str, list[dict]]:
         groups: dict[str, list[dict]] = {}
         for item in items:
@@ -83,8 +114,14 @@ class ReportFormatter:
         md_lines = [
             f"# VLA & 具身智能日报 {date_str}",
             f"\n> 共收录 **{total}** 条内容\n",
-            "## 目录\n",
         ]
+
+        highlights = self._format_highlights(items)
+        if highlights:
+            md_lines.append(highlights)
+            md_lines.append("---\n")
+
+        md_lines.append("## 目录\n")
         for cat, label in CATEGORY_LABELS.items():
             if cat in groups:
                 md_lines.append(f"- {label}（{len(groups[cat])}）")
