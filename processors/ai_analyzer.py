@@ -268,51 +268,41 @@ def _build_prompt_single(item: dict) -> str:
     content = f"标题：{title}\n\n摘要：{summary}"
     if intro:
         content += f"\n\n引言：{intro}"
-    return f"""你是具身智能/机器人领域的顶级研究员。请精读以下论文内容，用中文写一份深度分析。
+    return f"""你是具身智能/机器人领域的顶级研究员。请精读以下论文内容，用中文写一份深度分析，要求通俗易懂、信息密度高。
 
 {content}
 
 ---
 
-请按以下格式输出（直接输出，不要加任何前缀）：
+请严格按以下格式输出（直接输出，不要加任何前缀或解释）：
 
-relevance: <1-5的整数>
-direction: <从以下选一个：VLA基础/VLA+强化学习/VLA+世界模型/VLA+3D感知/数据采集与标注/灵巧操作/人形机器人/具身导航/多模态感知/其他>
+relevance: <1-5>
+priority: <1-5>
+direction: <VLA基础/VLA+强化学习/VLA+世界模型/VLA+3D感知/数据采集与标注/灵巧操作/人形机器人/具身导航/多模态感知/其他>
 
-<分析正文>
+📌 **一句话总结**
+<一句话，说清楚本文做了什么、有什么独特价值，禁止套话>
 
-relevance 评分标准：
-5 = 直接研究 VLA、具身智能、人形/四足机器人操作、机器人学习
-4 = 机器人操作/灵巧手/强化学习用于机器人/导航/sim-to-real
-3 = 具身AI基础技术且明确与机器人相关
-2 = 通用强化学习无机器人场景、通用NLP、非机器人视觉
-1 = 完全无关
+🎯 **问题与动机**
+- **问题**：<现有方法在什么场景下失败？原因是什么？写具体>
+- **Gap**：<本文填补了什么空白？已有工作忽略了什么？>
+- **Why it matters**：<解决这个问题的实际价值是什么？>
 
-分析正文格式：
-这篇论文解决的是**<核心问题，加粗>**。
+💡 **核心贡献**
+1. <贡献1：方法名 + 核心机制，一句话>
+2. <贡献2，若有>
+3. <贡献3，若有>
 
----
-
-**现有方法的局限**：
-- **<方法1>**：<具体缺陷>
-- **<方法2>**：<具体缺陷>
-
----
-
-**他们的解法 <方法名>**：
-
-1. <核心机制1>
-2. <核心机制2>
+📊 **效果**
+<原文实验结果，含基准名称+数字；无数字则写"论文未提供定量指标">
 
 ---
 
-**效果**：<原文中的实验结果，必须包含具体数字/基准名称，如"在 LIBERO-90 上成功率 87.3%，比基线提升 12pp"；若原文无具体指标则写"论文未提供定量结果">
+评分标准：
+relevance（与VLA/具身智能相关性）：5=直接VLA/机器人学习，4=机器人操作/RL用于机器人，3=具身AI基础技术，2=通用ML无机器人，1=无关
+priority（新颖度×实际价值，用于排序）：5=全新范式且真实机器人验证，4=新颖方法或强实验，3=实质改进，2=增量或仅仿真，1=综述/position paper
 
----
-
-**一句话概括**：<体现该论文独特贡献，禁止套话>
-
-要求：每个字段来自原文，禁止编造数据；若与机器人完全无关，relevance 填 1，正文只写一行说明原因。"""
+若完全无关：两项均填1，正文只写一行说明。"""
 
 
 def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
@@ -333,12 +323,19 @@ def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
             text = result.stdout.strip()
             lines = text.splitlines()
             relevance = 3
+            priority = 3
             direction = ""
             body_start = 0
-            for j, line in enumerate(lines[:4]):
+            for j, line in enumerate(lines[:5]):
                 if line.startswith("relevance:"):
                     try:
                         relevance = int(line.split(":")[1].strip())
+                    except ValueError:
+                        pass
+                    body_start = j + 1
+                elif line.startswith("priority:"):
+                    try:
+                        priority = int(line.split(":")[1].strip())
                     except ValueError:
                         pass
                     body_start = j + 1
@@ -348,10 +345,11 @@ def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
 
             body = _fix_tables("\n".join(lines[body_start:]).strip())
             item["relevance"] = relevance
+            item["priority"] = priority
             if direction:
                 item["direction"] = direction
             item["ai_analysis"] = body
-            logger.info(f"  [{i+1}/{len(items)}] 完成: relevance={relevance}")
+            logger.info(f"  [{i+1}/{len(items)}] 完成: relevance={relevance} priority={priority}")
 
         except FileNotFoundError:
             logger.warning("未找到 claude CLI")

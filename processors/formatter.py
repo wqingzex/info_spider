@@ -94,7 +94,7 @@ class ReportFormatter:
             if cat not in groups:
                 continue
             md_lines.append(f"---\n\n## {label}\n")
-            sorted_items = sorted(groups[cat], key=lambda x: x.get('relevance', 3), reverse=True)
+            sorted_items = sorted(groups[cat], key=lambda x: (x.get('priority', 3), x.get('relevance', 3)), reverse=True)
             for item in sorted_items:
                 md_lines.append(self._format_item(item))
                 md_lines.append("")
