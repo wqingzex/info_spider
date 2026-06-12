@@ -13,6 +13,7 @@ import json
 import logging
 import subprocess
 import time
+from pathlib import Path
 
 # 清除 SOCKS 代理变量，防止 google-genai/httpx 报错
 for _k in ("ALL_PROXY", "all_proxy"):
@@ -169,9 +170,7 @@ def _call_gemini(client, model: str, prompt: str, max_tokens: int) -> str:
 
 
 def analyze_with_gemini(items: list[dict], model: str, max_tokens: int) -> list[dict]:
-    """使用 Google Gemini API（免费：1500 次/天）
-    当指定模型配额耗尽时自动降级到其他免费模型。
-    """
+    """使用 Google Gemini API（免费：1500 次/天），每篇单独调用，与 claude_cli 格式一致"""
     try:
         from google import genai
     except ImportError:
@@ -180,35 +179,50 @@ def analyze_with_gemini(items: list[dict], model: str, max_tokens: int) -> list[
 
     api_key = os.environ.get("GEMINI_API_KEY", "")
     client = genai.Client(api_key=api_key)
-
-    # 构建降级列表：指定模型优先，其次按 fallback 顺序
     model_queue = [model] + [m for m in _GEMINI_FALLBACK_MODELS if m != model]
 
-    for start in range(0, len(items), MAX_BATCH_SIZE):
-        batch = items[start: start + MAX_BATCH_SIZE]
-        prompt = _build_prompt(batch)
+    for i, item in enumerate(items):
+        prompt = _build_prompt_single(item)
         success = False
-
         for try_model in model_queue:
             try:
                 text = _call_gemini(client, try_model, prompt, max_tokens)
-                items[start: start + MAX_BATCH_SIZE] = _parse_ai_response(text, batch)
+                lines = text.strip().splitlines()
+                relevance, priority, direction, body_start = 3, 3, "", 0
+                for j, line in enumerate(lines[:5]):
+                    if line.startswith("relevance:"):
+                        try: relevance = int(line.split(":")[1].strip())
+                        except ValueError: pass
+                        body_start = j + 1
+                    elif line.startswith("priority:"):
+                        try: priority = int(line.split(":")[1].strip())
+                        except ValueError: pass
+                        body_start = j + 1
+                    elif line.startswith("direction:"):
+                        direction = line.split(":", 1)[1].strip()
+                        body_start = j + 1
+                body = _fix_tables("\n".join(lines[body_start:]).strip())
+                item["relevance"] = relevance
+                item["priority"] = priority
+                if direction:
+                    item["direction"] = direction
+                item["ai_analysis"] = body
                 if try_model != model:
                     logger.info(f"已降级到 {try_model}")
-                time.sleep(10)  # gemini-2.5-flash，10s 间隔
+                logger.info(f"  [{i+1}/{len(items)}] 完成: relevance={relevance} priority={priority}")
+                time.sleep(3)
                 success = True
                 break
             except Exception as e:
                 err = str(e)
                 if "429" in err or "RESOURCE_EXHAUSTED" in err:
                     logger.warning(f"  {try_model} 配额耗尽，尝试下一个模型")
-                    time.sleep(2)
+                    time.sleep(5)
                 else:
-                    logger.warning(f"  {try_model} 失败: {err[:100]}")
+                    logger.warning(f"  [{i+1}] {try_model} 失败: {err[:100]}")
                     break
-
         if not success:
-            logger.warning(f"批次 {start} 所有 Gemini 模型均失败，跳过")
+            logger.warning(f"  [{i+1}] 所有 Gemini 模型均失败，跳过")
 
     return items
 
@@ -360,40 +374,87 @@ def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
     return items
 
 
+# ─── 分析缓存 ─────────────────────────────────────────────────────────────────
+
+_CACHE_FILE = "data/analysis_cache.json"
+_CACHE_FIELDS = ("ai_analysis", "relevance", "priority", "direction")
+
+
+def _cache_key(item: dict) -> str:
+    raw = item.get("url", "") or item.get("id", "")
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _load_analysis_cache() -> dict:
+    path = Path(_CACHE_FILE)
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def _save_analysis_cache(cache: dict) -> None:
+    Path(_CACHE_FILE).parent.mkdir(parents=True, exist_ok=True)
+    Path(_CACHE_FILE).write_text(json.dumps(cache, ensure_ascii=False, indent=None), encoding="utf-8")
+
+
 # ─── 主入口 ──────────────────────────────────────────────────────────────────
 
 def analyze(items: list[dict], ai_config: dict) -> list[dict]:
-    """自动选择最优 AI 后端（优先免费）"""
+    """自动选择最优 AI 后端，命中缓存的论文直接复用，不重复调用 AI。"""
     if not items:
         return items
 
-    gemini_model = ai_config.get("gemini_model", "gemini-2.0-flash-lite")
+    cache = _load_analysis_cache()
+    uncached = []
+    for item in items:
+        key = _cache_key(item)
+        if key in cache:
+            item.update(cache[key])
+        else:
+            uncached.append(item)
+
+    cached_count = len(items) - len(uncached)
+    if cached_count:
+        logger.info(f"分析缓存命中 {cached_count} 篇，剩余 {len(uncached)} 篇需分析")
+    if not uncached:
+        return items
+
+    gemini_model = ai_config.get("gemini_model", "gemini-2.5-flash")
     claude_model = ai_config.get("model", "claude-haiku-4-5-20251001")
-    max_tokens = ai_config.get("max_tokens", 1024)
+    max_tokens = ai_config.get("max_tokens", 2048)
+    backend = ai_config.get("backend", "auto")
 
-    # 1. Groq（免费，无需绑卡，优先）
-    if os.environ.get("GROQ_API_KEY"):
-        logger.info("使用 Groq API 分析 (llama-3.3-70b，免费)")
-        return analyze_with_groq(items, max_tokens)
-
-    # 2. Gemini（需绑卡，备用）
-    if os.environ.get("GEMINI_API_KEY"):
-        logger.info(f"使用 Gemini API 分析 ({gemini_model})")
-        return analyze_with_gemini(items, gemini_model, max_tokens)
-
-    # 3. Anthropic API
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        logger.info(f"使用 Anthropic SDK 分析 ({claude_model})")
-        return analyze_with_anthropic(items, claude_model, max_tokens)
-
-    # 4. 本地 claude CLI
-    try:
-        r = subprocess.run(["claude", "--version"], capture_output=True, timeout=5)
-        if r.returncode == 0:
+    def _run_backend(target_items):
+        if backend == "claude_cli" or (backend == "auto" and not os.environ.get("GEMINI_API_KEY") and not os.environ.get("GROQ_API_KEY")):
+            if _claude_cli_available():
+                logger.info("使用 Claude Code CLI 分析（不走 API）")
+                return analyze_with_claude_cli(target_items)
+        if backend == "groq" or (backend == "auto" and os.environ.get("GROQ_API_KEY")):
+            if os.environ.get("GROQ_API_KEY"):
+                logger.info("使用 Groq API 分析")
+                return analyze_with_groq(target_items, max_tokens)
+        if os.environ.get("GEMINI_API_KEY"):
+            logger.info(f"使用 Gemini API 分析 ({gemini_model})")
+            return analyze_with_gemini(target_items, gemini_model, max_tokens)
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            logger.info(f"使用 Anthropic SDK 分析 ({claude_model})")
+            return analyze_with_anthropic(target_items, claude_model, max_tokens)
+        if _claude_cli_available():
             logger.info("使用 Claude Code CLI 分析")
-            return analyze_with_claude_cli(items)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+            return analyze_with_claude_cli(target_items)
+        logger.info("未配置任何 AI 后端，输出原始内容")
+        return target_items
 
-    logger.info("未配置任何 AI 后端，输出原始内容")
+    uncached = _run_backend(uncached)
+
+    # 写回缓存
+    for item in uncached:
+        if item.get("ai_analysis"):
+            key = _cache_key(item)
+            cache[key] = {f: item[f] for f in _CACHE_FIELDS if f in item}
+    _save_analysis_cache(cache)
+
     return items
