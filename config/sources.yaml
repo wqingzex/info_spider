@@ -110,7 +110,7 @@ blogs:
   title_selector: h1, h2, h3
   link_selector: a
 ai:
-  backend: auto  # auto | gemini | claude_cli | groq | anthropic
+  backend: claude_cli  # auto | gemini | claude_cli | groq | anthropic
   gemini_model: gemini-2.5-flash
   model: claude-haiku-4-5-20251001
   max_tokens: 2048
