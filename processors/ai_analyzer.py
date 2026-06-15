@@ -10,6 +10,7 @@ Gemini 免费申请：https://aistudio.google.com/app/apikey
 """
 import os
 import json
+import hashlib
 import logging
 import subprocess
 import time
@@ -317,6 +318,14 @@ relevance（与VLA/具身智能相关性）：5=直接VLA/机器人学习，4=�
 priority（新颖度×实际价值，用于排序）：5=全新范式且真实机器人验证，4=新颖方法或强实验，3=实质改进，2=增量或仅仿真，1=综述/position paper
 
 若完全无关：两项均填1，正文只写一行说明。"""
+
+
+def _claude_cli_available() -> bool:
+    try:
+        r = subprocess.run(["claude", "--version"], capture_output=True, timeout=5)
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
 
 
 def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
