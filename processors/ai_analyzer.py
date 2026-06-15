@@ -334,7 +334,7 @@ def analyze_with_claude_cli(items: list[dict]) -> list[dict]:
         prompt = _build_prompt_single(item)
         try:
             result = subprocess.run(
-                ["claude", "-p", prompt, "--output-format", "text"],
+                ["claude", "-p", prompt, "--output-format", "text", "--model", "claude-haiku-4-5-20251001"],
                 capture_output=True,
                 text=True,
                 timeout=180,
