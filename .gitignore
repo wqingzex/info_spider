@@ -5,6 +5,7 @@ __pycache__/
 .env.local
 *.log
 logs/
+data/analysis_cache.json
 # 保留 output/ 和 data/ 让 GitHub Actions commit 进去
 # output/  # 不要忽略
 
